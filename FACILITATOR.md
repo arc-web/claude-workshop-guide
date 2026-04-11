@@ -37,7 +37,13 @@ Run a second pass on LOW confidence results with slightly different search terms
 
 ### 1.3 Infrastructure setup
 
-**Create a GitHub org** (or use an existing one). You need:
+**Automated option:** Use the [team-repo CLI](https://github.com/arc-web/team-repo) to provision everything in one command:
+```bash
+npx team-repo init workshop.json
+```
+This creates the hub repo, all team repos with CLAUDE.md/README/notes.md, and links them together. See the team-repo README for the config format.
+
+**Manual option:** Create a GitHub org (or use an existing one). You need:
 
 1. **Hub repo** (e.g., `my-workshop`) - read-only reference for all attendees. Copy from `templates/hub/`.
 2. **One repo per pod** (e.g., `workshop-pod-a`) - writable workspace per team. Copy from `templates/pod/`.
@@ -86,11 +92,23 @@ git remote set-url origin https://YOUR_TOKEN@github.com/{{ORG_NAME}}/{{POD_REPO}
 
 ### 1.5 Presentation materials
 
-Copy the GSAP HTML presentations from `presentations/`:
+**Option A - Use gsap-deck to generate from JSON (recommended):**
+
+```bash
+npx gsap-deck scaffold -o my-intro.json    # creates starter config
+# edit my-intro.json with your event content
+npx gsap-deck build my-intro.json --theme midnight --open
+```
+
+See [gsap-deck](https://github.com/arc-web/gsap-deck) for all 8 slide types and 5 themes. Example configs in `examples/`.
+
+**Option B - Edit the pre-built HTML files directly:**
+
+Copy from `presentations/`:
 - `workshop-intro.html` - 6 slides: title, the problem, the solution, stats, how it works, closing
 - `collab-guide.html` - 10+ slides: roles, handoffs, rate limits, viewing apps locally, midpoint check-in, NotebookLM
 
-Edit the content to match your event. Open in browser, navigate with arrow keys.
+Open in browser, navigate with arrow keys.
 
 ---
 
