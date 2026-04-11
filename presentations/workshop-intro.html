@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StellarPH x KMC - Claude AI Workshop</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple: #7B2FBE;
+    --purple-light: #9B59B6;
+    --orange: #F5A623;
+    --dark: #0A0A0F;
+    --darker: #050508;
+    --surface: #12121A;
+    --surface2: #1A1A26;
+    --text: #F0EEFF;
+    --muted: #8A82AA;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--dark);
+    color: var(--text);
+    font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    position: fixed;
+    width: 12px; height: 12px;
+    background: var(--orange);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: screen;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, background 0.2s;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 40px; height: 40px;
+    border: 1px solid rgba(245, 166, 35, 0.4);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Slide container */
+  #slides {
+    width: 100vw; height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 80px;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Background canvas for particles */
+  #bg-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .slide-content {
+    position: relative;
+    z-index: 2;
+    max-width: 1000px;
+    width: 100%;
+  }
+
+  /* Typography */
+  .eyebrow {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 24px;
+    opacity: 0;
+  }
+
+  h1 {
+    font-size: clamp(48px, 7vw, 96px);
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    margin-bottom: 32px;
+    opacity: 0;
+  }
+
+  h2 {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    opacity: 0;
+  }
+
+  h3 {
+    font-size: clamp(20px, 3vw, 32px);
+    font-weight: 600;
+    margin-bottom: 16px;
+    opacity: 0;
+  }
+
+  .subtitle {
+    font-size: clamp(16px, 2vw, 22px);
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 680px;
+    margin: 0 auto 40px;
+    opacity: 0;
+  }
+
+  /* Gradient text */
+  .grad {
+    background: linear-gradient(135deg, var(--purple-light) 0%, var(--orange) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .grad-alt {
+    background: linear-gradient(135deg, #60A5FA 0%, var(--purple-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Cards */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    width: 100%;
+    margin-top: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid rgba(123, 47, 190, 0.3);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: left;
+    opacity: 0;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(123,47,190,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .card:hover {
+    border-color: rgba(245, 166, 35, 0.5);
+  }
+
+  .card-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .card-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Big stat */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 32px;
+  }
+
+  .stat {
+    opacity: 0;
+  }
+
+  .stat-number {
+    font-size: clamp(48px, 6vw, 80px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--purple-light), var(--orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Divider line */
+  .line {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--orange));
+    border-radius: 2px;
+    margin: 24px auto;
+    opacity: 0;
+  }
+
+  /* Tag / pill */
+  .tag {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(123,47,190,0.5);
+    background: rgba(123,47,190,0.1);
+    color: var(--purple-light);
+    margin: 4px;
+    opacity: 0;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: left;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    background: var(--surface);
+    border: 1px solid rgba(123,47,190,0.2);
+    border-radius: 14px;
+    padding: 20px 24px;
+    opacity: 0;
+  }
+
+  .step-num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--orange);
+    background: rgba(245,166,35,0.1);
+    border: 1px solid rgba(245,166,35,0.3);
+    border-radius: 8px;
+    width: 32px; height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-text {
+    font-size: 16px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .step-text strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* Glow blobs */
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.12;
+  }
+
+  /* Nav dots */
+  #nav {
+    position: fixed;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+    padding: 0;
+  }
+  .dot.active {
+    background: var(--orange);
+    transform: scale(1.4);
+  }
+
+  /* Slide counter */
+  #counter {
+    position: fixed;
+    bottom: 32px;
+    right: 40px;
+    font-size: 13px;
+    color: var(--muted);
+    z-index: 100;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Key hint */
+  #hint {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: rgba(138,130,170,0.5);
+    z-index: 100;
+    letter-spacing: 0.05em;
+  }
+
+  /* Slide 1 - Hero */
+  #slide-1 .blob-1 {
+    width: 600px; height: 600px;
+    background: var(--purple);
+    top: -200px; right: -100px;
+  }
+  #slide-1 .blob-2 {
+    width: 400px; height: 400px;
+    background: var(--orange);
+    bottom: -150px; left: -100px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(123,47,190,0.15);
+    border: 1px solid rgba(123,47,190,0.4);
+    border-radius: 100px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--purple-light);
+    margin-bottom: 32px;
+    opacity: 0;
+  }
+
+  .hero-badge::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* Code block */
+  .code-block {
+    background: var(--surface2);
+    border: 1px solid rgba(123,47,190,0.3);
+    border-radius: 12px;
+    padding: 24px 28px;
+    text-align: left;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    opacity: 0;
+    margin-top: 24px;
+  }
+
+  .code-block .comment { color: #6A6A8A; }
+  .code-block .keyword { color: #C084FC; }
+  .code-block .string { color: #86EFAC; }
+  .code-block .fn { color: #60A5FA; }
+
+  /* Quote */
+  blockquote {
+    font-size: clamp(20px, 3vw, 32px);
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text);
+    position: relative;
+    padding: 0 40px;
+    opacity: 0;
+  }
+  blockquote::before {
+    content: '\201C';
+    position: absolute;
+    left: 0;
+    top: -10px;
+    font-size: 60px;
+    color: var(--orange);
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+
+  /* Two col */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    text-align: left;
+    width: 100%;
+    margin-top: 24px;
+  }
+
+  .col-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 16px;
+    opacity: 0;
+  }
+
+  .list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+    font-size: 16px;
+    color: var(--text);
+    opacity: 0;
+    line-height: 1.4;
+  }
+  .list-item::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--purple-light);
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+
+  /* Big center text */
+  .impact {
+    font-size: clamp(56px, 9vw, 120px);
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 0.9;
+    opacity: 0;
+  }
+
+  /* Transition overlay */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--darker);
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+<div id="overlay"></div>
+
+<div id="slides">
+
+  <!-- SLIDE 1: Hero -->
+  <div class="slide active" id="slide-1">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="slide-content">
+      <div class="hero-badge">StellarPH x KMC - Cebu IT Park</div>
+      <h1>The <span class="grad">Stupid Problems</span><br>You Run Into</h1>
+      <div class="subtitle">And how AI solves them better. A hands-on workshop with Claude Code.</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;opacity:0" class="tags-row">
+        <span class="tag" style="opacity:1">April 10, 2026</span>
+        <span class="tag" style="opacity:1">1 PM - 6 PM</span>
+        <span class="tag" style="opacity:1">Build. Ship. Demo.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: The Problem -->
+  <div class="slide" id="slide-2">
+    <div class="blob" style="width:500px;height:500px;background:#1D4ED8;top:-100px;left:-150px;opacity:0.08"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Why we're here</div>
+      <h2>Every team has <span class="grad-alt">the same problems</span></h2>
+      <div class="line"></div>
+      <div class="cards">
+        <div class="card">
+          <span class="card-icon">⏱️</span>
+          <div class="card-title">Time wasted on repetition</div>
+          <div class="card-desc">Tasks that should take 5 minutes take 5 hours because nobody built the right tool.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🧠</span>
+          <div class="card-title">Knowledge locked in heads</div>
+          <div class="card-desc">One person knows how something works. When they're gone, so is the knowledge.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔁</span>
+          <div class="card-title">Decisions made on gut</div>
+          <div class="card-desc">No data. No system. Just vibes - and then wondering why results are inconsistent.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📋</span>
+          <div class="card-title">Reports that go nowhere</div>
+          <div class="card-desc">Hours of work to produce something nobody reads or acts on.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: The Solution -->
+  <div class="slide" id="slide-3">
+    <div class="blob" style="width:700px;height:700px;background:var(--purple);bottom:-200px;right:-200px;opacity:0.1"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Today's approach</div>
+      <h2>You don't need to code.<br>You need to <span class="grad">describe.</span></h2>
+      <div class="subtitle">Claude Code turns plain English into working software. Your job is to understand the problem clearly enough to explain it.</div>
+      <div class="code-block">
+        <div><span class="comment"># This is all it takes to start</span></div>
+        <div><span class="keyword">claude</span></div>
+        <div style="margin-top:16px"><span class="comment"># Then just talk to it</span></div>
+        <div><span class="string">"Build me a tool that takes a client meeting summary</span></div>
+        <div><span class="string"> and generates a follow-up email in our tone of voice.</span></div>
+        <div><span class="string"> Include next steps and a subject line."</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Stats -->
+  <div class="slide" id="slide-4">
+    <div class="blob" style="width:400px;height:400px;background:var(--orange);top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.05"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Today in numbers</div>
+      <h2>What you're<br><span class="grad">building today</span></h2>
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-number">5</div>
+          <div class="stat-label">Hours to ship</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">4</div>
+          <div class="stat-label">Pods building</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">1</div>
+          <div class="stat-label">Live demo each</div>
+        </div>
+      </div>
+      <div class="line" style="margin-top:40px"></div>
+      <div class="subtitle" style="margin-top:0">Done and working beats perfect and unfinished. You have until 6 PM.</div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: How it works -->
+  <div class="slide" id="slide-5">
+    <div class="blob" style="width:500px;height:500px;background:#059669;top:-100px;right:-100px;opacity:0.06"></div>
+    <div class="slide-content">
+      <div class="eyebrow">The format</div>
+      <h2>How today <span class="grad">works</span></h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Pick your problem</strong> - one real thing that wastes your team's time</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Define it clearly</strong> - one sentence: who has it, what it costs them</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Build with Claude Code</strong> - describe what you want, iterate fast</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>Demo it live</strong> - 3 minutes, show it working, tell the story</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Quote -->
+  <div class="slide" id="slide-6">
+    <div class="blob" style="width:800px;height:800px;background:var(--purple);top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.06"></div>
+    <div class="slide-content">
+      <blockquote>
+        Come with a problem.<br>
+        Leave with something<br>
+        <span class="grad">that works.</span>
+      </blockquote>
+      <div class="line" style="margin-top:48px"></div>
+      <div class="subtitle">StellarPH x KMC - Claude AI Workshop - Cebu, April 10 2026</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nav dots -->
+<div id="nav"></div>
+<div id="counter">1 / 6</div>
+<div id="hint">← → arrow keys to navigate</div>
+
+<script>
+  // Particle canvas
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 1.5 + 0.3,
+      dx: (Math.random() - 0.5) * 0.3,
+      dy: (Math.random() - 0.5) * 0.3,
+      alpha: Math.random() * 0.4 + 0.05,
+      color: Math.random() > 0.5 ? '123,47,190' : '245,166,35'
+    });
+  }
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
+      ctx.fill();
+      p.x += p.dx; p.y += p.dy;
+      if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+    });
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+
+  // Cursor
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursor-ring');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+
+  function animCursor() {
+    cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+    requestAnimationFrame(animCursor);
+  }
+  animCursor();
+
+  // Slides
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  let animating = false;
+
+  // Build nav dots
+  const nav = document.getElementById('nav');
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('button');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    nav.appendChild(d);
+  }
+
+  function updateNav() {
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+  }
+
+  // Slide animations per slide
+  function animateIn(slide, idx) {
+    const tl = gsap.timeline();
+    const el = (sel) => slide.querySelectorAll(sel);
+
+    if (idx === 0) {
+      tl.to(el('.hero-badge'), { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' })
+        .from(el('.hero-badge'), { y: 20 }, '<')
+        .to(el('h1'), { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }, '-=0.3')
+        .from(el('h1'), { y: 40 }, '<')
+        .to(el('.subtitle'), { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.4')
+        .from(el('.subtitle'), { y: 20 }, '<')
+        .to(el('.tags-row'), { opacity: 1, duration: 0.5 }, '-=0.2');
+    } else if (idx === 1) {
+      tl.to(el('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 })
+        .from(el('.eyebrow'), { y: 16 }, '<')
+        .to(el('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2')
+        .from(el('h2'), { y: 30 }, '<')
+        .to(el('.line'), { opacity: 1, scaleX: 1, duration: 0.5, transformOrigin: 'left' }, '-=0.2')
+        .from(el('.line'), { scaleX: 0 }, '<')
+        .to(el('.card'), { opacity: 1, y: 0, duration: 0.5, stagger: 0.12 }, '-=0.1')
+        .from(el('.card'), { y: 30 }, '<0.12');
+    } else if (idx === 2) {
+      tl.to(el('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 })
+        .from(el('.eyebrow'), { y: 16 }, '<')
+        .to(el('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2')
+        .from(el('h2'), { y: 30 }, '<')
+        .to(el('.subtitle'), { opacity: 1, y: 0, duration: 0.6 }, '-=0.2')
+        .from(el('.subtitle'), { y: 20 }, '<')
+        .to(el('.code-block'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2')
+        .from(el('.code-block'), { y: 30 }, '<');
+    } else if (idx === 3) {
+      tl.to(el('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 })
+        .from(el('.eyebrow'), { y: 16 }, '<')
+        .to(el('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2')
+        .from(el('h2'), { y: 30 }, '<')
+        .to(el('.stat'), { opacity: 1, y: 0, duration: 0.6, stagger: 0.15 }, '-=0.2')
+        .from(el('.stat'), { y: 40 }, '<0.15')
+        .to(el('.line'), { opacity: 1, scaleX: 1, duration: 0.5, transformOrigin: 'center' }, '-=0.1')
+        .from(el('.line'), { scaleX: 0 }, '<')
+        .to(el('.subtitle'), { opacity: 1, duration: 0.5 }, '-=0.1');
+    } else if (idx === 4) {
+      tl.to(el('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 })
+        .from(el('.eyebrow'), { y: 16 }, '<')
+        .to(el('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2')
+        .from(el('h2'), { y: 30 }, '<')
+        .to(el('.step'), { opacity: 1, x: 0, duration: 0.5, stagger: 0.15 }, '-=0.2')
+        .from(el('.step'), { x: -30 }, '<0.15');
+    } else if (idx === 5) {
+      tl.to(el('blockquote'), { opacity: 1, y: 0, duration: 1, ease: 'power3.out' })
+        .from(el('blockquote'), { y: 40 }, '<')
+        .to(el('.line'), { opacity: 1, scaleX: 1, duration: 0.6, transformOrigin: 'center' }, '-=0.3')
+        .from(el('.line'), { scaleX: 0 }, '<')
+        .to(el('.subtitle'), { opacity: 1, duration: 0.6 }, '-=0.2');
+    }
+  }
+
+  function resetSlide(slide) {
+    const animatable = slide.querySelectorAll('.eyebrow, h1, h2, h3, .subtitle, .line, .card, .stat, .step, .code-block, blockquote, .hero-badge, .tags-row, .col-label, .list-item, .tag, .impact');
+    gsap.set(animatable, { opacity: 0, clearProps: 'transform' });
+  }
+
+  function goTo(idx) {
+    if (idx === current || animating || idx < 0 || idx >= total) return;
+    animating = true;
+
+    const overlay = document.getElementById('overlay');
+    const from = slides[current];
+    const to = slides[idx];
+
+    gsap.timeline()
+      .to(overlay, { opacity: 1, duration: 0.25, ease: 'power2.in' })
+      .call(() => {
+        from.classList.remove('active');
+        resetSlide(to);
+        to.classList.add('active');
+        current = idx;
+        updateNav();
+      })
+      .to(overlay, { opacity: 0, duration: 0.35, ease: 'power2.out' })
+      .call(() => {
+        animateIn(to, idx);
+        animating = false;
+      });
+  }
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(current + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(current - 1);
+  });
+
+  // Init first slide
+  window.addEventListener('load', () => {
+    resetSlide(slides[0]);
+    setTimeout(() => animateIn(slides[0], 0), 200);
+    updateNav();
+  });
+</script>
+</body>
+</html>

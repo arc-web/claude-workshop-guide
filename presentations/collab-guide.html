@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pod Collaboration - How to Divide and Conquer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --purple: #7B2FBE;
+  --purple-light: #A855F7;
+  --orange: #F5A623;
+  --teal: #14B8A6;
+  --blue: #3B82F6;
+  --pink: #EC4899;
+  --green: #22C55E;
+  --dark: #07070F;
+  --surface: #0F0F1A;
+  --surface2: #16162A;
+  --border: rgba(255,255,255,0.07);
+  --text: #F0EEFF;
+  --muted: #7A728A;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--dark);
+  color: var(--text);
+  font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+.cursor {
+  position: fixed; width: 10px; height: 10px;
+  background: var(--orange); border-radius: 50%;
+  pointer-events: none; z-index: 9999;
+  mix-blend-mode: screen; transform: translate(-50%,-50%);
+}
+.cursor-ring {
+  position: fixed; width: 36px; height: 36px;
+  border: 1px solid rgba(245,166,35,0.35); border-radius: 50%;
+  pointer-events: none; z-index: 9998; transform: translate(-50%,-50%);
+}
+
+#slides { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+
+.slide {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  padding: 60px 80px;
+  opacity: 0; pointer-events: none;
+}
+.slide.active { opacity: 1; pointer-events: all; }
+
+canvas#bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+.slide-content {
+  position: relative; z-index: 2;
+  width: 100%; max-width: 1100px;
+}
+
+/* Typography */
+.eyebrow {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--orange);
+  margin-bottom: 20px; opacity: 0;
+}
+
+h1 {
+  font-size: clamp(40px, 6vw, 80px); font-weight: 800;
+  line-height: 1.0; letter-spacing: -0.03em;
+  margin-bottom: 28px; opacity: 0;
+}
+
+h2 {
+  font-size: clamp(32px, 4.5vw, 58px); font-weight: 700;
+  line-height: 1.1; letter-spacing: -0.02em;
+  margin-bottom: 20px; opacity: 0;
+}
+
+.sub {
+  font-size: clamp(15px, 1.8vw, 20px); color: var(--muted);
+  line-height: 1.65; max-width: 700px; margin-bottom: 36px; opacity: 0;
+}
+
+.grad-purple { background: linear-gradient(135deg, var(--purple-light), #C084FC); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.grad-orange { background: linear-gradient(135deg, var(--orange), #FB923C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.grad-teal { background: linear-gradient(135deg, var(--teal), #34D399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.grad-main { background: linear-gradient(135deg, var(--purple-light), var(--orange)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+.line {
+  width: 48px; height: 3px;
+  background: linear-gradient(90deg, var(--purple), var(--orange));
+  border-radius: 2px; margin-bottom: 28px; opacity: 0;
+}
+
+/* --- SLIDE 1: ONE SLIDE VERSION --- */
+.one-slide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr 1px 1fr;
+  gap: 0;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.divider-v {
+  width: 1px;
+  background: var(--border);
+  margin: 0 4px;
+  opacity: 0;
+}
+
+.role-col {
+  padding: 20px 28px;
+  opacity: 0;
+}
+
+.role-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px; border-radius: 100px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+
+.role-badge.designer { background: rgba(20,184,166,0.12); color: var(--teal); border: 1px solid rgba(20,184,166,0.25); }
+.role-badge.builder { background: rgba(168,85,247,0.12); color: var(--purple-light); border: 1px solid rgba(168,85,247,0.25); }
+.role-badge.detailer { background: rgba(245,166,35,0.12); color: var(--orange); border: 1px solid rgba(245,166,35,0.25); }
+
+.role-title {
+  font-size: 18px; font-weight: 700; margin-bottom: 10px; color: var(--text);
+}
+
+.role-desc {
+  font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 16px;
+}
+
+.prompt-box {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11.5px;
+  color: #A5B4FC;
+  line-height: 1.6;
+  border: 1px solid var(--border);
+}
+
+.prompt-box .kw { color: var(--orange); }
+.prompt-box .val { color: #86EFAC; }
+
+/* Handoff arrow row */
+.handoff-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; margin-top: 20px; width: 100%; opacity: 0;
+}
+.handoff-node {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px;
+}
+.handoff-circle {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; border: 1px solid var(--border);
+}
+.handoff-label { font-size: 11px; color: var(--muted); font-weight: 600; text-align: center; }
+.handoff-arrow {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  position: relative; margin: 0 4px; padding-bottom: 20px;
+}
+.arrow-line {
+  height: 1px; background: linear-gradient(90deg, var(--purple), var(--teal));
+  flex: 1;
+}
+.arrow-tip { color: var(--teal); font-size: 16px; margin-left: -4px; }
+.arrow-label {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: var(--muted); white-space: nowrap;
+  font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+
+/* --- SLIDES 2-7: MULTI SLIDE VERSION --- */
+
+/* Role card - large */
+.role-card-large {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+}
+.role-card-large::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.role-card-large.designer::before { background: linear-gradient(90deg, var(--teal), #34D399); }
+.role-card-large.builder::before { background: linear-gradient(90deg, var(--purple), var(--purple-light)); }
+.role-card-large.detailer::before { background: linear-gradient(90deg, var(--orange), #FB923C); }
+
+.role-card-header {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+}
+.role-icon { font-size: 36px; }
+.role-card-name { font-size: 22px; font-weight: 700; }
+.role-card-sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+.prompt-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--orange); margin-bottom: 10px;
+}
+
+.prompt-large {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  color: #C4B5FD;
+  line-height: 1.7;
+}
+
+/* Three col roles */
+.roles-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.role-mini {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 20px;
+  opacity: 0;
+  position: relative; overflow: hidden;
+}
+.role-mini::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.role-mini.t::before { background: linear-gradient(90deg, var(--teal), #34D399); }
+.role-mini.p::before { background: linear-gradient(90deg, var(--purple), var(--purple-light)); }
+.role-mini.o::before { background: linear-gradient(90deg, var(--orange), #FB923C); }
+.role-mini.b::before { background: linear-gradient(90deg, var(--blue), #60A5FA); }
+
+.mini-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+.mini-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.mini-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* Flow diagram */
+.flow {
+  display: flex; flex-direction: column; gap: 12px;
+  width: 100%; max-width: 800px; margin: 0 auto;
+}
+
+.flow-step {
+  display: flex; gap: 20px; align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 22px;
+  opacity: 0;
+  position: relative;
+}
+
+.flow-step::after {
+  content: '↓';
+  position: absolute; bottom: -20px; left: 50%;
+  transform: translateX(-50%);
+  color: var(--border); font-size: 14px;
+  z-index: 1;
+}
+.flow-step:last-child::after { display: none; }
+
+.flow-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+
+.flow-icon.t { background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.2); }
+.flow-icon.p { background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.2); }
+.flow-icon.o { background: rgba(245,166,35,0.12); border: 1px solid rgba(245,166,35,0.2); }
+.flow-icon.b { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.2); }
+
+.flow-body { flex: 1; }
+.flow-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.flow-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.flow-prompt {
+  font-family: 'Fira Code', monospace; font-size: 12px;
+  color: #A5B4FC; margin-top: 8px;
+  background: var(--surface2); border-radius: 8px;
+  padding: 8px 12px; border: 1px solid var(--border);
+}
+
+.flow-who {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 3px 10px;
+  border-radius: 100px; margin-left: auto; align-self: center; flex-shrink: 0;
+}
+.flow-who.t { background: rgba(20,184,166,0.1); color: var(--teal); }
+.flow-who.p { background: rgba(168,85,247,0.1); color: var(--purple-light); }
+.flow-who.o { background: rgba(245,166,35,0.1); color: var(--orange); }
+.flow-who.b { background: rgba(59,130,246,0.1); color: var(--blue); }
+
+/* Comparison table */
+.compare {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px; width: 100%; margin-top: 16px;
+}
+
+.compare-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  opacity: 0;
+}
+
+.compare-col.good { border-color: rgba(34,197,94,0.2); }
+.compare-col.bad { border-color: rgba(239,68,68,0.2); }
+
+.compare-head {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 16px; font-weight: 700; margin-bottom: 20px;
+}
+.check { color: var(--green); }
+.cross { color: #EF4444; }
+
+.compare-item {
+  font-size: 14px; color: var(--muted); line-height: 1.5;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.compare-item:last-child { border-bottom: none; }
+.compare-item::before { flex-shrink: 0; margin-top: 1px; }
+.compare-col.good .compare-item::before { content: '✓'; color: var(--green); font-weight: 700; }
+.compare-col.bad .compare-item::before { content: '✗'; color: #EF4444; font-weight: 700; }
+
+/* Big label */
+.slide-label {
+  position: absolute; top: 28px; left: 80px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; z-index: 10;
+  opacity: 0;
+}
+.slide-label.one { color: var(--teal); }
+.slide-label.multi { color: var(--purple-light); }
+
+/* Section header for multi */
+.section-marker {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px; opacity: 0;
+}
+.section-marker-line {
+  flex: 1; height: 1px; background: var(--border);
+}
+.section-marker-text {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--purple-light);
+  white-space: nowrap;
+}
+
+/* Nav */
+#nav {
+  position: fixed; right: 32px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 8px; z-index: 100;
+}
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); cursor: pointer;
+  border: none; padding: 0; transition: all 0.3s;
+}
+.dot.active { background: var(--orange); transform: scale(1.5); }
+
+#counter {
+  position: fixed; bottom: 28px; right: 32px;
+  font-size: 12px; color: var(--muted); z-index: 100;
+}
+#hint {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px; color: rgba(122,114,138,0.4); z-index: 100;
+  letter-spacing: 0.05em;
+}
+
+#overlay {
+  position: fixed; inset: 0; background: var(--dark);
+  z-index: 50; pointer-events: none; opacity: 0;
+}
+
+/* Blobs */
+.blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(90px); pointer-events: none; z-index: 1;
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+<div id="overlay"></div>
+
+<div id="slides">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide active" id="slide-1">
+    <div class="blob" style="width:500px;height:500px;background:#7B2FBE;top:-150px;right:-100px;opacity:0.08"></div>
+    <div class="blob" style="width:400px;height:400px;background:#14B8A6;bottom:-100px;left:-80px;opacity:0.07"></div>
+    <div class="slide-content" style="text-align:center">
+      <div class="eyebrow">Pod Collaboration</div>
+      <h1>Divide the work.<br><span class="grad-main">Ship together.</span></h1>
+      <div class="sub" style="margin:0 auto 32px">Not everyone builds the same thing at the same time. Here's how to split roles, pass work cleanly, and keep Claude Code in the loop at every step.</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;opacity:0" id="title-tags">
+        <span style="font-size:13px;padding:6px 16px;border-radius:100px;background:rgba(20,184,166,0.1);color:var(--teal);border:1px solid rgba(20,184,166,0.2);font-weight:600">Frontend / Design</span>
+        <span style="font-size:13px;padding:6px 16px;border-radius:100px;background:rgba(168,85,247,0.1);color:var(--purple-light);border:1px solid rgba(168,85,247,0.2);font-weight:600">Builder / Logic</span>
+        <span style="font-size:13px;padding:6px 16px;border-radius:100px;background:rgba(245,166,35,0.1);color:var(--orange);border:1px solid rgba(245,166,35,0.2);font-weight:600">Details / Content</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: ONE SLIDE VERSION - all roles on one slide -->
+  <div class="slide" id="slide-2">
+    <div class="slide-label one">One-slide version</div>
+    <div class="blob" style="width:350px;height:350px;background:var(--teal);top:-100px;right:-80px;opacity:0.06"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Everything on one slide</div>
+      <h2 style="margin-bottom:6px">Who does <span class="grad-teal">what</span> + how to prompt for it</h2>
+      <div class="line"></div>
+      <div class="one-slide-grid">
+        <div class="role-col" id="rc1">
+          <div class="role-badge designer">🎨 Designer</div>
+          <div class="role-title">Frontend & Feel</div>
+          <div class="role-desc">Owns layout, color, user experience. Makes it look real.</div>
+          <div class="prompt-box">
+            <span class="kw">"Design a clean dashboard</span><br>
+            <span class="val">for [our tool]. Use a dark</span><br>
+            <span class="val">theme, teal accents, simple</span><br>
+            <span class="val">cards. Output one HTML file."</span>
+          </div>
+        </div>
+        <div class="divider-v" id="dv1"></div>
+        <div class="role-col" id="rc2">
+          <div class="role-badge builder">⚙️ Builder</div>
+          <div class="role-title">Core Logic</div>
+          <div class="role-desc">Makes the thing actually work. Connects inputs to outputs.</div>
+          <div class="prompt-box">
+            <span class="kw">"Take the HTML the designer</span><br>
+            <span class="val">made. Add the logic so when</span><br>
+            <span class="val">user clicks Submit it runs</span><br>
+            <span class="val">[our process] and shows output."</span>
+          </div>
+        </div>
+        <div class="divider-v" id="dv2"></div>
+        <div class="role-col" id="rc3">
+          <div class="role-badge detailer">✍️ Detailer</div>
+          <div class="role-title">Content & Edge Cases</div>
+          <div class="role-desc">Writes the copy, tests weird inputs, fills in what's missing.</div>
+          <div class="prompt-box">
+            <span class="kw">"Write 5 realistic test cases</span><br>
+            <span class="val">for [our tool]. Then improve</span><br>
+            <span class="val">the output copy so it sounds</span><br>
+            <span class="val">human, not like a robot wrote it."</span>
+          </div>
+        </div>
+      </div>
+      <div class="handoff-row" id="handoff">
+        <div class="handoff-node">
+          <div class="handoff-circle" style="background:rgba(20,184,166,0.1);border-color:rgba(20,184,166,0.25)">🎨</div>
+          <div class="handoff-label">Designer<br>ships HTML</div>
+        </div>
+        <div class="handoff-arrow">
+          <div class="arrow-line"></div>
+          <div class="arrow-tip">▶</div>
+          <div class="arrow-label">hands off file</div>
+        </div>
+        <div class="handoff-node">
+          <div class="handoff-circle" style="background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.25)">⚙️</div>
+          <div class="handoff-label">Builder<br>adds logic</div>
+        </div>
+        <div class="handoff-arrow">
+          <div class="arrow-line" style="background:linear-gradient(90deg,var(--purple),var(--orange))"></div>
+          <div class="arrow-tip" style="color:var(--orange)">▶</div>
+          <div class="arrow-label">ships updated file</div>
+        </div>
+        <div class="handoff-node">
+          <div class="handoff-circle" style="background:rgba(245,166,35,0.1);border-color:rgba(245,166,35,0.25)">✍️</div>
+          <div class="handoff-label">Detailer<br>polishes</div>
+        </div>
+        <div class="handoff-arrow">
+          <div class="arrow-line" style="background:linear-gradient(90deg,var(--orange),var(--green))"></div>
+          <div class="arrow-tip" style="color:var(--green)">▶</div>
+          <div class="arrow-label">final version</div>
+        </div>
+        <div class="handoff-node">
+          <div class="handoff-circle" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.25)">🚀</div>
+          <div class="handoff-label">Presenter<br>demos it</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: MULTI - Role breakdown -->
+  <div class="slide" id="slide-3">
+    <div class="slide-label multi">Multi-slide version — 1 of 4</div>
+    <div class="blob" style="width:400px;height:400px;background:var(--purple);top:-80px;left:-80px;opacity:0.07"></div>
+    <div class="slide-content">
+      <div class="section-marker">
+        <div class="section-marker-line"></div>
+        <div class="section-marker-text">Roles</div>
+        <div class="section-marker-line"></div>
+      </div>
+      <h2>Pick a lane.<br><span class="grad-purple">Own it completely.</span></h2>
+      <div class="sub">Four roles. Four parallel tracks. Nobody waiting on nobody else.</div>
+      <div class="roles-3" style="grid-template-columns:repeat(4,1fr)">
+        <div class="role-mini t">
+          <span class="mini-icon">🎨</span>
+          <div class="mini-title">Designer</div>
+          <div class="mini-desc">Layout, color, feel. Makes it look like a real product.</div>
+        </div>
+        <div class="role-mini p">
+          <span class="mini-icon">⚙️</span>
+          <div class="mini-title">Builder</div>
+          <div class="mini-desc">Core logic. Makes inputs connect to outputs.</div>
+        </div>
+        <div class="role-mini o">
+          <span class="mini-icon">✍️</span>
+          <div class="mini-title">Detailer</div>
+          <div class="mini-desc">Copy, edge cases, making the output sound human.</div>
+        </div>
+        <div class="role-mini b">
+          <span class="mini-icon">🎤</span>
+          <div class="mini-title">Presenter</div>
+          <div class="mini-desc">Owns the 3-min demo narrative. Runs it twice before showtime.</div>
+        </div>
+      </div>
+      <div style="margin-top:24px;font-size:14px;color:var(--muted);opacity:0" id="s3-note">
+        One person can hold two roles. Pod of 3? Designer + Detailer is common. What matters: everyone's moving at the same time.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: MULTI - Designer prompts -->
+  <div class="slide" id="slide-4">
+    <div class="slide-label multi">Multi-slide version — 2 of 4</div>
+    <div class="blob" style="width:400px;height:400px;background:var(--teal);bottom:-100px;right:-80px;opacity:0.07"></div>
+    <div class="slide-content">
+      <div class="section-marker">
+        <div class="section-marker-line"></div>
+        <div class="section-marker-text">Designer prompts</div>
+        <div class="section-marker-line"></div>
+      </div>
+      <h2><span class="grad-teal">🎨 Designer</span> — What to tell Claude Code</h2>
+      <div class="sub">Your job is layout, color, and feel. Claude Code outputs HTML. You iterate until it looks real.</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-icon t">🖼️</div>
+          <div class="flow-body">
+            <div class="flow-title">Start with structure</div>
+            <div class="flow-prompt">"Design a clean one-page UI for [our tool]. It needs: a header, an input area where users type [X], a button that says [Y], and a results section below. Use a dark background, teal accent color, and modern card-style layout. Output as one self-contained HTML file."</div>
+          </div>
+          <div class="flow-who t">Designer</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon t">🎨</div>
+          <div class="flow-body">
+            <div class="flow-title">Iterate on feel</div>
+            <div class="flow-prompt">"The layout is good but it feels generic. Make it feel more premium - refine the typography, add subtle gradient accents, improve spacing. Keep the same structure."</div>
+          </div>
+          <div class="flow-who t">Designer</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon t">📦</div>
+          <div class="flow-body">
+            <div class="flow-title">Hand off to Builder</div>
+            <div class="flow-desc">Save the HTML file. Tell the Builder: <em>"The design is done. The button doesn't do anything yet - that's your job. The results section is empty - fill it with real output."</em></div>
+          </div>
+          <div class="flow-who p">Builder next</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: MULTI - Builder prompts -->
+  <div class="slide" id="slide-5">
+    <div class="slide-label multi">Multi-slide version — 3 of 4</div>
+    <div class="blob" style="width:400px;height:400px;background:var(--purple);top:-80px;right:-80px;opacity:0.07"></div>
+    <div class="slide-content">
+      <div class="section-marker">
+        <div class="section-marker-line"></div>
+        <div class="section-marker-text">Builder + Detailer prompts</div>
+        <div class="section-marker-line"></div>
+      </div>
+      <h2><span class="grad-purple">⚙️ Builder</span> then <span class="grad-orange">✍️ Detailer</span></h2>
+      <div class="sub">Builder makes it work. Detailer makes it good. Sequential but fast - both running Claude Code simultaneously on their part.</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-icon p">⚙️</div>
+          <div class="flow-body">
+            <div class="flow-title">Builder: wire up the logic</div>
+            <div class="flow-prompt">"Here's the HTML file the designer built [paste it]. The button does nothing. Make it so when clicked, it takes the user's input and sends it to Claude API with this system prompt: [paste your prompt]. Show the response in the results section. Keep all the existing design."</div>
+          </div>
+          <div class="flow-who p">Builder</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon p">🔁</div>
+          <div class="flow-body">
+            <div class="flow-title">Builder: fix what breaks</div>
+            <div class="flow-prompt">"The output shows up but it's raw text, no formatting. Parse it as markdown and render it properly. Also add a loading spinner while the API call is running."</div>
+          </div>
+          <div class="flow-who p">Builder</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon o">✍️</div>
+          <div class="flow-body">
+            <div class="flow-title">Detailer: polish the output</div>
+            <div class="flow-prompt">"The tool works but the output sounds robotic. Rewrite the system prompt so the response sounds like a smart human wrote it, not an AI. Then write 5 realistic test inputs we can use for the live demo and show me the output for each."</div>
+          </div>
+          <div class="flow-who o">Detailer</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: RATE LIMITS - Claude Web fallback -->
+  <div class="slide" id="slide-6">
+    <div class="blob" style="width:500px;height:500px;background:#3B82F6;top:-120px;right:-100px;opacity:0.07"></div>
+    <div class="blob" style="width:350px;height:350px;background:var(--orange);bottom:-80px;left:-60px;opacity:0.06"></div>
+    <div class="slide-content">
+      <div class="eyebrow">When Claude Code slows down</div>
+      <h2>Hit a rate limit?<br><span class="grad-main">Switch lanes, keep moving.</span></h2>
+      <div class="sub">Claude Code has usage limits. When it slows down or stops, don't wait - jump to Claude web and keep the work going in parallel.</div>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-icon b">⚠️</div>
+          <div class="flow-body">
+            <div class="flow-title">You hit a rate limit in Claude Code</div>
+            <div class="flow-desc">Terminal slows down or says you've hit a usage limit. This is normal. Don't stop.</div>
+          </div>
+          <div class="flow-who b">Signal</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon t">🌐</div>
+          <div class="flow-body">
+            <div class="flow-title">Open Claude web — claude.ai</div>
+            <div class="flow-desc">Different usage pool. Free to use. You can keep building here while Claude Code recovers.</div>
+            <div class="flow-prompt">"I'm building [describe your tool]. Here's where we're up to: [paste your notes or current code]. Help me plan the next steps and mock up the frontend."</div>
+          </div>
+          <div class="flow-who t">Claude web</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon o">🎨</div>
+          <div class="flow-body">
+            <div class="flow-title">Ask Claude web to mock up the frontend</div>
+            <div class="flow-desc">Claude web can generate full HTML/CSS. Use it to get the design done while the terminal is paused.</div>
+            <div class="flow-prompt">"Build a clean frontend for [our tool]. It needs: [describe inputs, outputs, layout]. Output a single self-contained HTML file I can paste into my project."</div>
+          </div>
+          <div class="flow-who t">Claude web</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon p">📋</div>
+          <div class="flow-body">
+            <div class="flow-title">Copy the code — paste it into Claude Code</div>
+            <div class="flow-desc">When Claude Code is ready again, grab everything Claude web generated and hand it over.</div>
+            <div class="flow-prompt">"Here's the HTML file Claude web built for our frontend [paste it]. Now wire up the logic so the button actually calls [our process] and shows results in the output section."</div>
+          </div>
+          <div class="flow-who p">Claude Code</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: Web vs Terminal - when to use which -->
+  <div class="slide" id="slide-7">
+    <div class="blob" style="width:450px;height:450px;background:var(--purple);top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.05"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Two tools, one team</div>
+      <h2>Claude web vs<br><span class="grad-purple">Claude Code</span> — use both</h2>
+      <div class="sub">They're not the same tool. They have different strengths. Smart pods use both at the same time.</div>
+
+      <div class="compare">
+        <div class="compare-col" style="border-color:rgba(59,130,246,0.25)">
+          <div class="compare-head" style="color:var(--blue)">🌐 Claude web (claude.ai)</div>
+          <div class="compare-item" style="color:var(--text)">Planning - "what should we build next?"</div>
+          <div class="compare-item" style="color:var(--text)">Mocking up frontend designs</div>
+          <div class="compare-item" style="color:var(--text)">Writing and refining your prompts</div>
+          <div class="compare-item" style="color:var(--text)">Drafting notes.md and presentation copy</div>
+          <div class="compare-item" style="color:var(--text)">Brainstorming edge cases to test</div>
+          <div class="compare-item" style="color:var(--text)">Works when Claude Code is rate limited</div>
+        </div>
+        <div class="compare-col" style="border-color:rgba(168,85,247,0.25)">
+          <div class="compare-head" style="color:var(--purple-light)">⚙️ Claude Code (terminal)</div>
+          <div class="compare-item" style="color:var(--text)">Building - writes and runs actual files</div>
+          <div class="compare-item" style="color:var(--text)">Wiring up logic, APIs, and interactions</div>
+          <div class="compare-item" style="color:var(--text)">Pushing work to the pod GitHub repo</div>
+          <div class="compare-item" style="color:var(--text)">Reading your CLAUDE.md for context</div>
+          <div class="compare-item" style="color:var(--text)">Iterating on code files directly</div>
+          <div class="compare-item" style="color:var(--text)">Running things, seeing real output</div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;background:var(--surface);border:1px solid rgba(245,166,35,0.2);border-radius:14px;padding:20px 24px;opacity:0;display:flex;gap:16px;align-items:flex-start" id="s7-tip">
+        <div style="font-size:24px;flex-shrink:0">💡</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px;color:var(--orange)">The relay strategy</div>
+          <div style="font-size:14px;color:var(--muted);line-height:1.6">Designer uses Claude web to mock the UI. Builder pastes that into Claude Code to wire logic. Detailer uses Claude web to refine copy and test prompts. Nobody waits. The work moves forward on both tracks simultaneously.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE: See it in your browser -->
+  <div class="slide" id="slide-see-it">
+    <div class="blob" style="width:500px;height:500px;background:#22C55E;bottom:-150px;right:-100px;opacity:0.06"></div>
+    <div class="blob" style="width:350px;height:350px;background:var(--purple);top:-80px;left:-60px;opacity:0.06"></div>
+    <div class="slide-content" style="text-align:center;max-width:820px">
+      <div class="eyebrow">Seeing your app</div>
+      <h2>Want to see it?<br><span class="grad-main">Just ask.</span></h2>
+      <div class="sub">Claude Code handles the rest. You don't need to know what a "server" is or how to run one. One sentence is enough.</div>
+
+      <div style="background:var(--surface2);border:1px solid rgba(34,197,94,0.25);border-radius:16px;padding:28px 32px;margin-bottom:24px;opacity:0" id="the-prompt">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#22C55E;margin-bottom:14px">Say this to Claude Code</div>
+        <div style="font-family:'Fira Code','Cascadia Code',monospace;font-size:18px;color:var(--text);line-height:1.6">
+          "Open this in my browser so I can see it."
+        </div>
+      </div>
+
+      <div style="font-size:14px;color:var(--muted);margin-bottom:28px;opacity:0" id="thats-it">That's it. Claude Code will start a local server and give you a link like <span style="color:var(--teal);font-family:monospace">http://localhost:3000</span> — click it and your app appears.</div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;opacity:0" id="see-cards">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px">
+          <div style="font-size:28px;margin-bottom:10px">📄</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px">Plain HTML file</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">Claude Code opens it directly. No server needed. Instant.</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px">
+          <div style="font-size:28px;margin-bottom:10px">⚡</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px">App with logic</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">Claude Code starts a local server automatically and gives you the link.</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px">
+          <div style="font-size:28px;margin-bottom:10px">🔄</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px">Made a change?</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">"Refresh my browser" or just hit refresh - Claude Code keeps it live.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.2);border-radius:12px;padding:16px 20px;font-size:14px;color:var(--muted);line-height:1.6;opacity:0;text-align:left" id="see-tip">
+        <span style="color:var(--orange);font-weight:700">If it doesn't open automatically:</span> look in the terminal for a line that says <span style="color:var(--teal);font-family:monospace">localhost:XXXX</span> and paste that URL into your browser.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE: Midpoint check-in -->
+  <div class="slide" id="slide-midpoint">
+    <div class="blob" style="width:450px;height:450px;background:var(--pink);top:-100px;right:-80px;opacity:0.06"></div>
+    <div class="blob" style="width:350px;height:350px;background:var(--teal);bottom:-80px;left:-60px;opacity:0.06"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Halfway there</div>
+      <h2>Midpoint check-in —<br><span style="background:linear-gradient(135deg,#EC4899,#F97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">one person, two minutes.</span></h2>
+      <div class="sub" style="max-width:640px">Not a full demo. Just a quick pulse check. Pick one person from your pod to speak. Everyone else listens and takes notes.</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;opacity:0" id="mp-grid">
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--teal);margin-bottom:4px">Cover this</div>
+
+          <div style="background:var(--surface);border:1px solid rgba(20,184,166,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="font-size:20px;flex-shrink:0">🏗️</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">What you built so far</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">One sentence. What does it do right now, even if it's rough.</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(20,184,166,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="font-size:20px;flex-shrink:0">✅</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">What was easy</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">What did Claude just nail on the first try? What surprised you?</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(20,184,166,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="font-size:20px;flex-shrink:0">🧱</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">What blocked you</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Where did you get stuck? Rate limits, wrong output, unclear prompts?</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(20,184,166,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="font-size:20px;flex-shrink:0">🎯</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">What's next</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">One specific thing you're building in the next 30 minutes.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin-bottom:4px">Prompt to prep</div>
+
+          <div style="background:var(--surface2);border:1px solid rgba(245,166,35,0.2);border-radius:12px;padding:18px 20px;font-family:'Fira Code','Cascadia Code',monospace;font-size:12.5px;color:#C4B5FD;line-height:1.8;flex:1">
+            "Help me prepare a 2-minute<br>
+            midpoint update for our pod.<br><br>
+            Here's where we're at:<br>
+            [paste your notes.md]<br><br>
+            Write a quick script covering:<br>
+            - What we built so far<br>
+            - What was easy<br>
+            - What blocked us<br>
+            - What we're doing next<br><br>
+            Keep it honest and specific.<br>
+            No corporate speak."
+          </div>
+
+          <div style="background:rgba(236,72,153,0.07);border:1px solid rgba(236,72,153,0.2);border-radius:12px;padding:14px 18px;display:flex;gap:12px;align-items:flex-start">
+            <div style="font-size:18px;flex-shrink:0">⏱️</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.5">
+              <span style="color:#EC4899;font-weight:700">Two minutes max.</span> If you're going longer, you're explaining too much. The point is the blocker — say it fast so the room can help.
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">After each pod speaks</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.7">
+              → Anyone with the same blocker raises their hand<br>
+              → Anyone who solved it shares how<br>
+              → Move on - don't get stuck in one pod's problem
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE: NotebookLM -->
+  <div class="slide" id="slide-notebooklm">
+    <div class="blob" style="width:500px;height:500px;background:#4285F4;top:-120px;right:-100px;opacity:0.07"></div>
+    <div class="blob" style="width:400px;height:400px;background:var(--purple);bottom:-100px;left:-80px;opacity:0.06"></div>
+    <div class="slide-content">
+      <div class="eyebrow">Turn your work into a presentation</div>
+      <h2>NotebookLM —<br><span style="background:linear-gradient(135deg,#4285F4,#34A853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">pitch deck + explainer video</span></h2>
+      <div class="sub" style="max-width:700px">You built something. Now make it presentable. NotebookLM reads your repo and generates a polished audio pitch and slide outline in minutes.</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;opacity:0" id="nlm-grid">
+
+        <!-- Left: Steps -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#4285F4;margin-bottom:4px">How to do it</div>
+
+          <div style="background:var(--surface);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4285F4;flex-shrink:0">1</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">Go to notebooklm.google.com</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Sign in with Google. Click <strong style="color:var(--text)">New Notebook</strong>.</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4285F4;flex-shrink:0">2</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">Upload your sources</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Click <strong style="color:var(--text)">Add Source</strong> - paste your GitHub repo URL, or paste the contents of your <code style="color:var(--teal);background:var(--surface2);padding:1px 5px;border-radius:4px">notes.md</code> and <code style="color:var(--teal);background:var(--surface2);padding:1px 5px;border-radius:4px">README.md</code> as copied text.</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(52,168,83,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="background:rgba(52,168,83,0.1);border:1px solid rgba(52,168,83,0.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#34A853;flex-shrink:0">3</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">Generate Audio Overview</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Click <strong style="color:var(--text)">Audio Overview</strong> in the right panel. Click <strong style="color:var(--text)">Generate</strong>. Two AI hosts discuss your project like a startup pitch. Takes ~2 minutes.</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(52,168,83,0.2);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="background:rgba(52,168,83,0.1);border:1px solid rgba(52,168,83,0.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#34A853;flex-shrink:0">4</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px">Generate the pitch deck outline</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">In the chat box, paste the prompt on the right. Copy the output into Google Slides or Canva.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Prompt + tips -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin-bottom:4px">Pitch deck prompt</div>
+
+          <div style="background:var(--surface2);border:1px solid rgba(245,166,35,0.2);border-radius:12px;padding:18px 20px;font-family:'Fira Code','Cascadia Code',monospace;font-size:12px;color:#C4B5FD;line-height:1.8">
+            "Create a pitch deck outline<br>
+            for our solution. Structure:<br><br>
+            Slide 1 - Title + what we built<br>
+            Slide 2 - The problem + who has it<br>
+            Slide 3 - Our solution in plain English<br>
+            Slide 4 - How it works (3 steps)<br>
+            Slide 5 - Live demo [we show live]<br>
+            Slide 6 - What we'd build next<br>
+            Slide 7 - What surprised us today<br><br>
+            2-3 bullet points per slide.<br>
+            Punchy, specific, no corporate speak."
+          </div>
+
+          <div style="background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.2);border-radius:12px;padding:14px 18px">
+            <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px;letter-spacing:0.05em">FOR THE EXPLAINER VIDEO</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.7">
+              1. Play the Audio Overview<br>
+              2. Hit <strong style="color:var(--text)">Shift+Cmd+5</strong> (Mac) or <strong style="color:var(--text)">Win+G</strong> (Windows) to record your screen<br>
+              3. While audio plays, show your app or GitHub repo<br>
+              4. Stop recording — you have a video<br><br>
+              Or use <strong style="color:var(--text)">loom.com</strong> for instant shareable link
+            </div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid rgba(66,133,244,0.15);border-radius:12px;padding:12px 16px;display:flex;gap:10px;align-items:center">
+            <div style="font-size:18px">💡</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.5">Make sure <code style="color:var(--teal);background:var(--surface2);padding:1px 5px;border-radius:4px">notes.md</code> is filled in before you open NotebookLM — it can only work with what you give it.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: MULTI - The handoff rule -->
+  <div class="slide" id="slide-8">
+    <div class="slide-label multi">Multi-slide version — 4 of 4</div>
+    <div class="blob" style="width:500px;height:500px;background:var(--orange);bottom:-150px;left:-100px;opacity:0.06"></div>
+    <div class="slide-content">
+      <div class="section-marker">
+        <div class="section-marker-line"></div>
+        <div class="section-marker-text">The handoff</div>
+        <div class="section-marker-line"></div>
+      </div>
+      <h2>Passing work without<br><span class="grad-orange">losing context</span></h2>
+      <div class="sub">The #1 mistake: handing off a file with no explanation. Claude Code on the other end has no idea what's done, what's broken, or what not to touch.</div>
+      <div class="compare">
+        <div class="compare-col bad">
+          <div class="compare-head"><span class="cross">✗</span> Bad handoff</div>
+          <div class="compare-item">Paste a file and say "here you go"</div>
+          <div class="compare-item">No context on what's done vs what's missing</div>
+          <div class="compare-item">Builder rewrites the designer's work</div>
+          <div class="compare-item">Detailer doesn't know which output is the right one to test</div>
+          <div class="compare-item">Everyone redoes each other's work</div>
+        </div>
+        <div class="compare-col good">
+          <div class="compare-head"><span class="check">✓</span> Good handoff</div>
+          <div class="compare-item">Paste the file + 3 sentences: what's done, what's missing, what not to touch</div>
+          <div class="compare-item">"The design is locked. Only add to the JS. Don't change the CSS."</div>
+          <div class="compare-item">"The button works. The output formatting is broken - that's the only thing to fix."</div>
+          <div class="compare-item">"Test with these 3 inputs: [list them]. The 3rd one fails."</div>
+          <div class="compare-item">Next person knows exactly where to start</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nav -->
+<div id="nav"></div>
+<div id="counter">1 / 6</div>
+<div id="hint">← → to navigate &nbsp;·&nbsp; S = one-slide &nbsp;·&nbsp; M = multi-slide</div>
+
+<script>
+// Particles
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let pts = [];
+
+function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+resize(); window.addEventListener('resize', resize);
+
+for (let i = 0; i < 50; i++) pts.push({
+  x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+  r: Math.random() * 1.2 + 0.3,
+  dx: (Math.random() - 0.5) * 0.25, dy: (Math.random() - 0.5) * 0.25,
+  a: Math.random() * 0.35 + 0.04,
+  c: Math.random() > 0.5 ? '123,47,190' : Math.random() > 0.5 ? '20,184,166' : '245,166,35'
+});
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  pts.forEach(p => {
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${p.c},${p.a})`; ctx.fill();
+    p.x += p.dx; p.y += p.dy;
+    if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+    if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+  });
+  requestAnimationFrame(draw);
+}
+draw();
+
+// Cursor
+const cur = document.getElementById('cursor'), ring = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+function animC() {
+  cur.style.left = mx + 'px'; cur.style.top = my + 'px';
+  rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+  ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+  requestAnimationFrame(animC);
+}
+animC();
+
+// Slides
+const slides = document.querySelectorAll('.slide');
+const N = slides.length;
+let cur2 = 0, busy = false;
+
+const nav = document.getElementById('nav');
+for (let i = 0; i < N; i++) {
+  const d = document.createElement('button');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.onclick = () => go(i);
+  nav.appendChild(d);
+}
+
+function updateNav() {
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === cur2));
+  document.getElementById('counter').textContent = (cur2 + 1) + ' / ' + N;
+}
+
+function resetSlide(s) {
+  const els = s.querySelectorAll('.eyebrow,.line,h1,h2,.sub,.role-col,.divider-v,#handoff,.role-mini,.flow-step,.compare-col,.section-marker,.slide-label,#title-tags,#s3-note,#s7-tip,#the-prompt,#thats-it,#see-cards,#see-tip,#mp-grid,#nlm-grid');
+  gsap.set(els, { opacity: 0, clearProps: 'transform' });
+}
+
+function animIn(s, i) {
+  const q = sel => s.querySelectorAll(sel);
+  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+  if (i === 0) {
+    tl.to(q('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 }).from(q('.eyebrow'), { y: 16 }, '<')
+      .to(q('h1'), { opacity: 1, y: 0, duration: 0.8 }, '-=0.3').from(q('h1'), { y: 40 }, '<')
+      .to(q('.sub'), { opacity: 1, y: 0, duration: 0.6 }, '-=0.3').from(q('.sub'), { y: 20 }, '<')
+      .to(q('#title-tags'), { opacity: 1, duration: 0.5 }, '-=0.2');
+  } else if (i === 1) {
+    tl.to(q('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 }).from(q('.eyebrow'), { y: 16 }, '<')
+      .to(q('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2').from(q('h2'), { y: 30 }, '<')
+      .to(q('.line'), { opacity: 1, scaleX: 1, duration: 0.4, transformOrigin: 'left' }, '-=0.2').from(q('.line'), { scaleX: 0 }, '<')
+      .to(q('.slide-label'), { opacity: 1, duration: 0.4 }, '<')
+      .to('#rc1,#rc2,#rc3', { opacity: 1, y: 0, duration: 0.5, stagger: 0.15 }, '-=0.1').from('#rc1,#rc2,#rc3', { y: 24 }, '<0.15')
+      .to('#dv1,#dv2', { opacity: 1, duration: 0.4 }, '-=0.2')
+      .to('#handoff', { opacity: 1, y: 0, duration: 0.6 }, '-=0.1').from('#handoff', { y: 20 }, '<');
+  } else if (i >= 2) {
+    tl.to(q('.slide-label'), { opacity: 1, duration: 0.3 })
+      .to(q('.section-marker'), { opacity: 1, duration: 0.5 }, '-=0.1')
+      .to(q('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2').from(q('h2'), { y: 30 }, '<')
+      .to(q('.sub'), { opacity: 1, y: 0, duration: 0.5 }, '-=0.2').from(q('.sub'), { y: 16 }, '<');
+
+    const staggerEls = i === 3
+      ? q('.role-mini')
+      : i === 4 || i === 5
+      ? q('.flow-step')
+      : i === 6 || i === 7
+      ? q('.compare-col')
+      : [];
+
+    if (staggerEls.length) {
+      tl.to(staggerEls, { opacity: 1, y: 0, duration: 0.5, stagger: 0.15 }, '-=0.1')
+        .from(staggerEls, { y: 24 }, '<0.15');
+    }
+
+    if (i === 3) {
+      tl.to(q('#s3-note'), { opacity: 1, duration: 0.5 }, '-=0.1');
+    }
+    if (i === 6) {
+      tl.to(q('#s7-tip'), { opacity: 1, y: 0, duration: 0.5 }, '-=0.1').from(q('#s7-tip'), { y: 16 }, '<');
+    }
+    // "See it in browser" slide - identified by #the-prompt
+    const nlmGrid = s.querySelector('#nlm-grid');
+    if (nlmGrid) {
+      tl.to(q('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 }).from(q('.eyebrow'), { y: 16 }, '<')
+        .to(q('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2').from(q('h2'), { y: 30 }, '<')
+        .to(q('.sub'), { opacity: 1, y: 0, duration: 0.5 }, '-=0.2').from(q('.sub'), { y: 16 }, '<')
+        .to(q('#nlm-grid'), { opacity: 1, y: 0, duration: 0.6 }, '-=0.1').from(q('#nlm-grid'), { y: 24 }, '<');
+      return;
+    }
+
+    const mpGrid = s.querySelector('#mp-grid');
+    if (mpGrid) {
+      tl.to(q('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 }).from(q('.eyebrow'), { y: 16 }, '<')
+        .to(q('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2').from(q('h2'), { y: 30 }, '<')
+        .to(q('.sub'), { opacity: 1, y: 0, duration: 0.5 }, '-=0.2').from(q('.sub'), { y: 16 }, '<')
+        .to(q('#mp-grid'), { opacity: 1, y: 0, duration: 0.6 }, '-=0.1').from(q('#mp-grid'), { y: 24 }, '<');
+      return;
+    }
+
+    const seePrompt = s.querySelector('#the-prompt');
+    if (seePrompt) {
+      tl.to(q('.eyebrow'), { opacity: 1, y: 0, duration: 0.5 }).from(q('.eyebrow'), { y: 16 }, '<')
+        .to(q('h2'), { opacity: 1, y: 0, duration: 0.7 }, '-=0.2').from(q('h2'), { y: 30 }, '<')
+        .to(q('.sub'), { opacity: 1, y: 0, duration: 0.5 }, '-=0.2').from(q('.sub'), { y: 16 }, '<')
+        .to(q('#the-prompt'), { opacity: 1, y: 0, duration: 0.7, ease: 'back.out(1.4)' }, '-=0.1').from(q('#the-prompt'), { y: 24 }, '<')
+        .to(q('#thats-it'), { opacity: 1, duration: 0.5 }, '-=0.1')
+        .to(q('#see-cards'), { opacity: 1, y: 0, duration: 0.5 }, '-=0.1').from(q('#see-cards'), { y: 20 }, '<')
+        .to(q('#see-tip'), { opacity: 1, duration: 0.5 }, '-=0.1');
+      return;
+    }
+  }
+}
+
+function go(idx) {
+  if (idx === cur2 || busy || idx < 0 || idx >= N) return;
+  busy = true;
+  const ov = document.getElementById('overlay');
+  gsap.timeline()
+    .to(ov, { opacity: 1, duration: 0.2, ease: 'power2.in' })
+    .call(() => {
+      slides[cur2].classList.remove('active');
+      resetSlide(slides[idx]);
+      slides[idx].classList.add('active');
+      cur2 = idx; updateNav();
+    })
+    .to(ov, { opacity: 0, duration: 0.3, ease: 'power2.out' })
+    .call(() => { animIn(slides[idx], idx); busy = false; });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') go(cur2 + 1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(cur2 - 1);
+  if (e.key === 's' || e.key === 'S') go(1); // jump to one-slide
+  if (e.key === 'm' || e.key === 'M') go(2); // jump to multi
+});
+
+// Init
+window.addEventListener('load', () => {
+  resetSlide(slides[0]);
+  setTimeout(() => animIn(slides[0], 0), 150);
+  updateNav();
+});
+</script>
+</body>
+</html>
